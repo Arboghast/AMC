@@ -2,53 +2,41 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"time"
 
 	"github.com/gen2brain/beeep"
 	"github.com/playwright-community/playwright-go"
 )
 
 func main() {
-	fmt.Println("hello")
+	fmt.Println("Launching Playwright...")
 
-	pw, err := playwright.Run()
-	if err != nil {
-		log.Fatalf("could not start playwright: %v", err)
-	}
-	browser, err := pw.Chromium.Launch()
-	if err != nil {
-		log.Fatalf("could not launch browser: %v", err)
-	}
-	page, err := browser.NewPage()
-	if err != nil {
-		log.Fatalf("could not create page: %v", err)
-	}
+	pw, _ := playwright.Run()
 
-	// December 6th is the only confirmed date - there may be other showings throughout the week
-	interstellarID := "gladiator-ii-72641"
-	lincolnCenterShowtimes := "https://www.amctheatres.com/movies/%s/showtimes?date=2024-12-06&theatre=amc-lincoln-square-13"
-	if _, err = page.Goto(fmt.Sprintf(lincolnCenterShowtimes, interstellarID)); err != nil {
-		log.Fatalf("could not goto: %v", err)
-	}
+	for {
+		browser, _ := pw.Chromium.Launch()
+		page, _ := browser.NewPage()
 
-	noShowtimesMessage := "Sorry, no showtimes have been announced yet for this theatre. Showtimes for Friday and beyond are usually posted by Wednesday afternoon."
-	content := page.GetByText(noShowtimesMessage)
-	if content != nil {
-		fmt.Println("No element could be found!")
-		// continue wrap in for loop
-	}
+		// December 6th is the only confirmed date - there may be other showings throughout the week
+		interstellarID := "interstellar-76729"
+		date := "2024-12-06"
+		lincolnCenterShowtimes := "https://www.amctheatres.com/movies/%s/showtimes?date=%s&theatre=amc-lincoln-square-13"
+		_, _ = page.Goto(fmt.Sprintf(lincolnCenterShowtimes, interstellarID, date))
 
-	// there are showings available, so send a message
-	err = beeep.Beep(beeep.DefaultFreq, beeep.DefaultDuration*2)
-	if err != nil {
-		log.Fatalf("Could not issue audio")
-	}
-	// send discord notification here too
+		noShowtimesMessage := "Sorry, no showtimes have been announced yet for this theatre. Showtimes for Friday and beyond are usually posted by Wednesday afternoon."
+		content := page.GetByText(noShowtimesMessage)
+		if content == nil {
+			// there are showings available, so make a system notification
+			for {
+				_ = beeep.Beep(beeep.DefaultFreq/2, beeep.DefaultDuration)
+				time.Sleep(5 * time.Second)
+			}
+		}
 
-	if err = browser.Close(); err != nil {
-		log.Fatalf("could not close browser: %v", err)
-	}
-	if err = pw.Stop(); err != nil {
-		log.Fatalf("could not stop Playwright: %v", err)
+		currTime := time.Now().Format(time.Kitchen)
+		fmt.Println("No Showtimes are available!", currTime)
+		_ = browser.Close()
+
+		time.Sleep(30 * time.Second)
 	}
 }
